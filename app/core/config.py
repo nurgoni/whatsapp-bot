@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     WHATSAPP_API_TOKEN: str
     WHATSAPP_CLOUD_NUMBER_ID: str
     VERIFY_TOKEN: str
+    OPENAI_API_KEY: str
+    API_URL_OPENAI: str
 
     @property
     def API_URL_WHATSAPP(self):

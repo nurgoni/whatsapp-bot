@@ -1,7 +1,7 @@
 import json
-import logging
 import requests
 
+from app.services.openai import OpenAIWrapper
 from app.core import settings
 
 
@@ -101,6 +101,7 @@ class WhatsappGAD:
         ]
 
         self.sessions = {}
+        self.chatgpt = OpenAIWrapper()
 
     def send_message(self, payload):
         response = requests.post(
@@ -168,7 +169,8 @@ class WhatsappGAD:
         """Initialize assessment session and send the first question"""
         self.sessions[phone_number] = {
             "current_question": 0,
-            "total_score": 0
+            "total_score": 0,
+            "mode": "assessment"
         }
         self.send_interactive_message(self.list_questions_gad[0], phone_number)
 
@@ -206,3 +208,40 @@ class WhatsappGAD:
                 }
             })
             del self.sessions[phone_number]  # Remove session after completion
+
+    def start_consultation(self, phone_number):
+        self.sessions[phone_number] = {
+            "mode": "consultation"
+        }
+        self.send_message({
+            "messaging_product": "whatsapp",
+            "to": phone_number,
+            "type": "text",
+            "text": {
+                "body": "Hai!, saya adalah teman kamu yang siap mendengar perasaanmu hari ini. Bagaimana perasaanmu sekarang? Saya sangat tertarik mendengar-nya."
+            }
+        })
+
+    def process_consultation(self, phone_number, user_input):
+        if phone_number in self.sessions and self.sessions[phone_number]["mode"] == "consultation":
+            if user_input.strip().lower() == "selesai":
+                del self.sessions[phone_number]
+                self.send_message({
+                    "messaging_product": "whatsapp",
+                    "to": phone_number,
+                    "type": "text",
+                    "text": {
+                        "body": "Terima kasih telah berkonsultasi dengan saya. Semoga perasaanmu menjadi lebih baik."
+                    }
+                })
+            else:
+                response = self.chatgpt.get_openai_response(user_input)
+                self.send_message({
+                    "messaging_product": "whatsapp",
+                    "to": phone_number,
+                    "type": "text",
+                    "text": {
+                        "body": response
+                    }
+                })
+    
