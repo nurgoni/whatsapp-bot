@@ -51,23 +51,26 @@ async def send_response(request: Request):
         for change in entry.get("changes", []):
             value = change.get("value", {})
 
-            user = value["contacts"][0]["profile"]["name"]
-            print("nama: ", user)
+            # user = value["contacts"][0]["profile"]["name"]
+            # print("nama: ", user)
 
             if "messages" in value:
                 message = value["messages"][0]
                 sender = message["from"]
 
                 if message["type"] == "text":
-                    if sender in client.sessions:
+                    if sender in client.sessions and client.sessions[sender]["mode"] == "assessment":
                         client.send_message({
                             "messaging_product": "whatsapp",
                             "to": sender,
                             "type": "text",
                             "text": {"body": "Anda sedang dalam proses assessment. Silakan pilih opsi dari daftar untuk melanjutkan."}
                         })
+                    elif sender in client.sessions and client.sessions[sender]["mode"] == "consultation":
+                        user_message = message["text"]["body"]
+                        client.process_consultation(sender, user_message)
                     else:
-                        client.send_main_menu(sender, user)
+                        client.send_main_menu(sender)
 
                 elif message["type"] == "interactive":
                     button_id = message["interactive"]["list_reply"]["id"]
@@ -75,12 +78,7 @@ async def send_response(request: Request):
                     if button_id == "assessment":
                         client.start_assessment(sender)
                     elif button_id == "consultation":
-                        client.send_message({
-                            "messaging_product": "whatsapp",
-                            "to": sender,
-                            "type": "text",
-                            "text": {"body": "MAAF! Fitur konsultasi masih dalam pengembangan."}
-                        })
+                        client.start_consultation(sender)
                     else:
                         client.process_response(sender, button_id)
     
