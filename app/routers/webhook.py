@@ -59,7 +59,15 @@ async def send_response(request: Request):
                 sender = message["from"]
 
                 if message["type"] == "text":
-                    client.send_main_menu(sender, user)
+                    if sender in client.sessions:
+                        client.send_message({
+                            "messaging_product": "whatsapp",
+                            "to": sender,
+                            "type": "text",
+                            "text": {"body": "Anda sedang dalam proses assessment. Silakan pilih opsi dari daftar untuk melanjutkan."}
+                        })
+                    else:
+                        client.send_main_menu(sender, user)
 
                 elif message["type"] == "interactive":
                     button_id = message["interactive"]["list_reply"]["id"]
