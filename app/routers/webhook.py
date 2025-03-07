@@ -2,7 +2,8 @@ import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from app.services.whatsapp import WhatsappWrapper
+
+from app.services.whatsapp import WhatsappGAD
 from app.core import settings
 
 
@@ -10,7 +11,7 @@ router = APIRouter(
     prefix="/webhook",
     tags=["webhook"],
 )
-
+client = WhatsappGAD()
 
 @router.get("/webhook")
 def subscribe(request: Request):
@@ -39,16 +40,40 @@ def subscribe(request: Request):
 
 @router.post("/webhook")
 async def send_response(request: Request):
-    client = WhatsappWrapper()
 
     data = await request.json()
-    logging.info("receive data")
+    logging.info(f"Received Payload: {data}")
 
-    response = client.get_text_message(data)
-    if response["status_code"] == 200:
-        # if response["from_no"] and response["message"]:
-        client.send_interactive_message(response["message"].upper(), response["from_no"])
+    # user = data["entry"][0]["changes"][0]["value"]["contacts"][0][]
+    # print(user)
 
-        logging.info(f"Message sent to {response['from_no']} with message {response['message']}")
+    for entry in data.get("entry", []):
+        for change in entry.get("changes", []):
+            value = change.get("value", {})
 
-    return JSONResponse(content={"status": "success"}, status_code=200)
+            user = value["contacts"][0]["profile"]["name"]
+            print("nama: ", user)
+
+            if "messages" in value:
+                message = value["messages"][0]
+                sender = message["from"]
+
+                if message["type"] == "text":
+                    client.send_main_menu(sender, user)
+
+                elif message["type"] == "interactive":
+                    button_id = message["interactive"]["list_reply"]["id"]
+
+                    if button_id == "assessment":
+                        client.start_assessment(sender)
+                    elif button_id == "consultation":
+                        client.send_message({
+                            "messaging_product": "whatsapp",
+                            "to": sender,
+                            "type": "text",
+                            "text": {"body": "MAAF! Fitur konsultasi masih dalam pengembangan."}
+                        })
+                    else:
+                        client.process_response(sender, button_id)
+    
+    return {"status": "received"}
